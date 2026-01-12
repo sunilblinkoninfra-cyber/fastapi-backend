@@ -18,7 +18,13 @@ ALERT_WEBHOOK_URL = os.getenv("ALERT_WEBHOOK_URL")
 # ===============================
 # APP
 # ===============================
-app = FastAPI(title="SOC Phishing Platform", version="4.2")
+app = FastAPI(
+    title="SOC Phishing Platform",
+    version="4.2",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
+)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
@@ -198,3 +204,4 @@ def dashboard():
 # ===============================
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=8000)
+
