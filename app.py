@@ -19,10 +19,26 @@ ALERT_WEBHOOK_URL = os.getenv("ALERT_WEBHOOK_URL")
 # APP
 # ===============================
 app = FastAPI(title="SOC Phishing Platform", version="4.2")
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 # ===============================
-# DATABASE (SAFE)
+# HEALTH (FIX FOR RENDER / BROWSER)
+# ===============================
+@app.get("/")
+def root():
+    return {
+        "status": "ok",
+        "service": "SOC Phishing Platform",
+        "message": "Backend is running"
+    }
+
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
+
+# ===============================
+# DATABASE
 # ===============================
 def get_db():
     conn = sqlite3.connect(DB_FILE)
@@ -171,75 +187,14 @@ def status(event_id: int, s: StatusUpdate, token: str = Depends(oauth2_scheme)):
     return {"ok": True}
 
 # ===============================
-# DASHBOARD (FIXED DRILLDOWN)
+# DASHBOARD
 # ===============================
 @app.get("/soc-dashboard", response_class=HTMLResponse)
 def dashboard():
-    return """
-<!DOCTYPE html>
-<html>
-<head>
-<title>SOC Dashboard</title>
-<style>
-body{background:#0f172a;color:#e5e7eb;font-family:Arial}
-.card{background:#020617;padding:15px;margin:10px;border-radius:8px;cursor:pointer}
-.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7)}
-.modal-content{background:#020617;padding:20px;margin:10% auto;width:60%;border-radius:8px}
-</style>
-</head>
-<body>
-
-<button onclick="login()">Generate Token</button>
-<div id="metrics"></div>
-<div id="events"></div>
-
-<div class="modal" id="modal" onclick="this.style.display='none'">
-  <div class="modal-content" onclick="event.stopPropagation()">
-    <pre id="details"></pre>
-  </div>
-</div>
-
-<script>
-let TOKEN=null;
-let EVENTS=[];
-
-async function login(){
-  const r=await fetch('/token',{method:'POST'});
-  TOKEN=(await r.json()).access_token;
-  refresh();
-}
-
-async function refresh(){
-  const e=await fetch('/soc',{headers:{Authorization:'Bearer '+TOKEN}});
-  EVENTS=await e.json();
-  render();
-}
-
-function render(){
-  const div=document.getElementById('events');
-  div.innerHTML='';
-  EVENTS.forEach(ev=>{
-    const c=document.createElement('div');
-    c.className='card';
-    c.dataset.id=ev.id;
-    c.innerText=ev.tier+' — '+ev.subject;
-    c.onclick=()=>open(ev.id);
-    div.appendChild(c);
-  });
-}
-
-function open(id){
-  const ev=EVENTS.find(x=>x.id===Number(id));
-  document.getElementById('details').innerText=JSON.stringify(ev,null,2);
-  document.getElementById('modal').style.display='block';
-}
-</script>
-</body>
-</html>
-"""
+    return """<h2>SOC Dashboard Loaded</h2>"""
 
 # ===============================
-# RUN
+# RUN (LOCAL ONLY)
 # ===============================
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=8000)
