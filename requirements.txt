@@ -1,0 +1,14 @@
+numpy
+pandas
+scikit-learn
+nltk
+fastapi
+uvicorn
+python-multipart
+joblib
+jinja2
+fastapi
+uvicorn
+python-jose[cryptography]
+pydantic
+

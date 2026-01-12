@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>SOC Dashboard</title>
+<style>
+    body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: linear-gradient(135deg, #0f172a, #020617);
+        color: #e5e7eb;
+    }
+
+    header {
+        padding: 20px;
+        background: #020617;
+        border-bottom: 1px solid #1e293b;
+    }
+
+    h1 {
+        margin: 0;
+        font-size: 24px;
+    }
+
+    button {
+        cursor: pointer;
+        background: #2563eb;
+        border: none;
+        color: white;
+        padding: 6px 10px;
+        margin-right: 6px;
+        border-radius: 4px;
+        font-size: 12px;
+    }
+
+    button.secondary { background: #334155; }
+    button.ack { background: #16a34a; }
+    button.fp { background: #dc2626; }
+    button.esc { background: #f59e0b; }
+
+    #metrics {
+        display: flex;
+        gap: 20px;
+        padding: 15px;
+        background: #020617;
+        border-bottom: 1px solid #1e293b;
+        font-size: 14px;
+    }
+
+    .metric {
+        padding: 8px 14px;
+        border-radius: 6px;
+        background: #020617;
+        border: 1px solid #1e293b;
+    }
+
+    #events {
+        padding: 20px;
+    }
+
+    .event {
+        border: 1px solid #1e293b;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        padding: 14px;
+        background: #020617;
+    }
+
+    .event.hot { border-left: 5px solid #dc2626; }
+    .event.warm { border-left: 5px solid #f59e0b; }
+    .event.cold { border-left: 5px solid #16a34a; }
+
+    .title {
+        font-size: 15px;
+        font-weight: bold;
+    }
+
+    .meta {
+        font-size: 12px;
+        opacity: 0.7;
+        margin-top: 4px;
+    }
+
+    .actions {
+        margin-top: 10px;
+    }
+
+    .details {
+        margin-top: 10px;
+        padding: 10px;
+        background: #020617;
+        border: 1px dashed #1e293b;
+        display: none;
+        font-size: 12px;
+        white-space: pre-wrap;
+    }
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>🔐 SOC Dashboard</h1>
+    <button onclick="generateToken()">Generate Token</button>
+</header>
+
+<div id="metrics">
+    <div class="metric">TOTAL: <span id="m_total">0</span></div>
+    <div class="metric">HOT: <span id="m_hot">0</span></div>
+    <div class="metric">WARM: <span id="m_warm">0</span></div>
+    <div class="metric">COLD: <span id="m_cold">0</span></div>
+</div>
+
+<div id="events"></div>
+
+<script>
+let TOKEN = localStorage.getItem("soc_token") || "";
+
+function generateToken() {
+    fetch("/token", {
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        body: "username=analyst&password=analyst"
+    })
+    .then(r => r.json())
+    .then(d => {
+        TOKEN = d.access_token;
+        localStorage.setItem("soc_token", TOKEN);
+        loadAll();
+    });
+}
+
+function authHeaders() {
+    return { "Authorization": "Bearer " + TOKEN };
+}
+
+function loadMetrics() {
+    fetch("/soc-metrics", { headers: authHeaders() })
+    .then(r => r.json())
+    .then(m => {
+        m_total.innerText = m.TOTAL;
+        m_hot.innerText = m.HOT;
+        m_warm.innerText = m.WARM;
+        m_cold.innerText = m.COLD;
+    });
+}
+
+function loadEvents() {
+    fetch("/soc", { headers: authHeaders() })
+    .then(r => r.json())
+    .then(events => {
+        const container = document.getElementById("events");
+        container.innerHTML = "";
+
+        events.forEach(e => {
+            const div = document.createElement("div");
+            div.className = "event " + e.tier.toLowerCase();
+
+            div.innerHTML = `
+                <div class="title">${e.tier} — ${e.verdict} (Score ${e.risk_score})</div>
+                <div>${e.subject}</div>
+                <div class="meta">${e.timestamp} | Status: ${e.status}</div>
+
+                <div class="actions">
+                    <button class="ack" onclick="updateStatus(${e.id}, 'ACK')">Ack</button>
+                    <button class="esc" onclick="updateStatus(${e.id}, 'ESC')">Esc</button>
+                    <button class="fp" onclick="updateStatus(${e.id}, 'FP')">FP</button>
+                    <button class="secondary" onclick="toggleDetails(${e.id})">Details</button>
+                </div>
+
+                <div class="details" id="d_${e.id}">
+MITRE:
+${JSON.stringify(e.mitre, null, 2)}
+
+RAW:
+${JSON.stringify(e.raw, null, 2)}
+                </div>
+            `;
+
+            container.appendChild(div);
+        });
+    });
+}
+
+function toggleDetails(id) {
+    const el = document.getElementById("d_" + id);
+    el.style.display = el.style.display === "none" ? "block" : "none";
+}
+
+function updateStatus(id, status) {
+    fetch(`/soc/${id}/status`, {
+        method: "POST",
+        headers: {
+            ...authHeaders(),
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ status })
+    }).then(loadAll);
+}
+
+function loadAll() {
+    if (!TOKEN) return;
+    loadMetrics();
+    loadEvents();
+}
+
+loadAll();
+setInterval(loadAll, 5000);
+</script>
+
+</body>
+</html>

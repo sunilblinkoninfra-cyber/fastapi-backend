@@ -1,0 +1,18 @@
+services:
+  phishing-api:
+    build: .
+    container_name: phishing-api
+    ports:
+      - "8000:8000"
+    environment:
+      - API_KEY=my-secret-key
+      - CLAMAV_HOST=clamav
+      - CLAMAV_PORT=3310
+    depends_on:
+      - clamav
+
+  clamav:
+    image: mkodockx/docker-clamav:alpine
+    container_name: clamav
+    ports:
+      - "3310:3310"
