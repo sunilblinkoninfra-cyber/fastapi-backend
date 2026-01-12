@@ -12,4 +12,4 @@ uvicorn
 python-jose[cryptography]
 pydantic
 PyJWT
-
+requests
