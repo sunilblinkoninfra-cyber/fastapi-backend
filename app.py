@@ -1,6 +1,9 @@
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.responses import HTMLResponse
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List, Dict
 from datetime import datetime, timedelta
@@ -42,6 +45,24 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "healthy"}
+
+@app.get("/openapi.json", include_in_schema=False)
+def openapi():
+    return JSONResponse(
+        get_openapi(
+            title=app.title,
+            version=app.version,
+            routes=app.routes,
+        )
+    )
+
+
+@app.get("/docs", include_in_schema=False)
+def swagger_ui():
+    return get_swagger_ui_html(
+        openapi_url="/openapi.json",
+        title="SOC Phishing Platform Docs",
+    )
 
 # ===============================
 # DATABASE
@@ -204,4 +225,5 @@ def dashboard():
 # ===============================
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=8000)
+
 
