@@ -1,9 +1,8 @@
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List, Dict
 from datetime import datetime, timedelta
@@ -16,23 +15,22 @@ JWT_SECRET = os.getenv("JWT_SECRET", "super-secret-key")
 JWT_ALGO = "HS256"
 TOKEN_EXPIRE_MINUTES = 60
 DB_FILE = "soc_events.db"
-ALERT_WEBHOOK_URL = os.getenv("ALERT_WEBHOOK_URL")
 
 # ===============================
-# APP
+# APP (AUTO DOCS DISABLED)
 # ===============================
 app = FastAPI(
     title="SOC Phishing Platform",
     version="4.2",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None
 )
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 # ===============================
-# HEALTH (FIX FOR RENDER / BROWSER)
+# HEALTH
 # ===============================
 @app.get("/")
 def root():
@@ -46,6 +44,9 @@ def root():
 def health():
     return {"status": "healthy"}
 
+# ===============================
+# MANUAL OPENAPI + DOCS (FIX)
+# ===============================
 @app.get("/openapi.json", include_in_schema=False)
 def openapi():
     return JSONResponse(
@@ -56,12 +57,11 @@ def openapi():
         )
     )
 
-
 @app.get("/docs", include_in_schema=False)
-def swagger_ui():
+def docs():
     return get_swagger_ui_html(
         openapi_url="/openapi.json",
-        title="SOC Phishing Platform Docs",
+        title="SOC Phishing Platform Docs"
     )
 
 # ===============================
@@ -218,12 +218,10 @@ def status(event_id: int, s: StatusUpdate, token: str = Depends(oauth2_scheme)):
 # ===============================
 @app.get("/soc-dashboard", response_class=HTMLResponse)
 def dashboard():
-    return """<h2>SOC Dashboard Loaded</h2>"""
+    return "<h2>SOC Dashboard Loaded</h2>"
 
 # ===============================
 # RUN (LOCAL ONLY)
 # ===============================
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=8000)
-
-
