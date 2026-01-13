@@ -8,26 +8,20 @@ import os
 
 print(">>> RUNNING app.py <<<")
 
-# ===============================
-# CONFIG
-# ===============================
 JWT_SECRET = os.getenv("JWT_SECRET", "super-secret-key")
 JWT_ALGO = "HS256"
 TOKEN_EXPIRE_MINUTES = 60
 
-# ===============================
-# APP (LET FASTAPI HANDLE DOCS)
-# ===============================
+# 👇 MOVE DOCS TO NON-RESERVED PATHS
 app = FastAPI(
     title="SOC Phishing Platform",
-    version="4.2"
+    version="4.2",
+    docs_url="/swagger",
+    openapi_url="/swagger.json"
 )
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
-# ===============================
-# HEALTH
-# ===============================
 @app.get("/")
 def root():
     return {
@@ -36,51 +30,31 @@ def root():
         "message": "Backend is running"
     }
 
-@app.get("/health")
-def health():
-    return {"status": "healthy"}
-
-# ===============================
-# AUTH
-# ===============================
-def create_token():
-    return jwt.encode(
-        {"exp": datetime.utcnow() + timedelta(minutes=TOKEN_EXPIRE_MINUTES)},
-        JWT_SECRET,
-        algorithm=JWT_ALGO
-    )
-
-def verify_token(token: str):
-    try:
-        jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
 @app.post("/token")
 def token():
-    return {"access_token": create_token(), "token_type": "bearer"}
+    payload = {
+        "exp": datetime.utcnow() + timedelta(minutes=TOKEN_EXPIRE_MINUTES)
+    }
+    return {
+        "access_token": jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO),
+        "token_type": "bearer"
+    }
 
-# ===============================
-# MODELS
-# ===============================
 class EmailRequest(BaseModel):
     subject: str
     body: str
     urls: List[str] = []
 
-# ===============================
-# SCAN
-# ===============================
-KEYWORDS = ["urgent", "verify", "password", "login"]
-
 @app.post("/scan")
 def scan(email: EmailRequest, token: str = Depends(oauth2_scheme)):
-    verify_token(token)
-    score = min(sum(20 for k in KEYWORDS if k in (email.subject + email.body).lower()), 100)
-    verdict = "PHISHING" if score >= 70 else "SAFE"
+    try:
+        jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    score = 20 if "password" in (email.subject + email.body).lower() else 0
     return {
         "timestamp": datetime.utcnow().isoformat(),
-        "subject": email.subject,
-        "verdict": verdict,
-        "risk_score": score
+        "verdict": "PHISHING" if score else "SAFE",
+        "score": score
     }
